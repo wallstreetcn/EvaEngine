@@ -681,13 +681,6 @@ class Engine
             true
         );
 
-        $di->set(
-            'smsIntlSender',
-            function () use ($self) {
-                return $self->diSmsIntlSender();
-            },
-            true
-        );
         /**********************************
          * DI initialize for helpers
          ***********************************/
@@ -1144,16 +1137,14 @@ class Engine
     public function diSmsSenderGeneric()
     {
         $config = $this->getDI()->getConfig();
-        /*$adapterMapping = array(
-            'submail' => 'Eva\EvaSms\Providers\Submail',
-            'submailIntl' => 'Eva\EvaSms\Providers\SubmailIntlAdapter',
-        );*/
+        $configArray = $config->toArray();
         $sender = new Sender();
+        $sender::setConfigArray($configArray);
         if ($config->smsSender->timeout) {
             $sender::setDefaultTimeout($config->smsSender->timeout);
         }
-	return $sender;
-    } 
+        return $sender;
+    }
 
     public function diMailer()
     {
