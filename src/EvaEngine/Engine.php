@@ -676,10 +676,11 @@ class Engine
         $di->set(
             'smsSender',
             function () use ($self) {
-                return $self->diSmsSender();
+                return $self->diSmsSenderGeneric();
             },
             true
         );
+
         /**********************************
          * DI initialize for helpers
          ***********************************/
@@ -1130,6 +1131,18 @@ class Engine
             $sender::setDefaultTimeout($config->smsSender->timeout);
         }
 
+        return $sender;
+    }
+
+    public function diSmsSenderGeneric()
+    {
+        $config = $this->getDI()->getConfig();
+        $configArray = $config->toArray();
+        $sender = new Sender();
+        $sender::setConfigArray($configArray);
+        if ($config->smsSender->timeout) {
+            $sender::setDefaultTimeout($config->smsSender->timeout);
+        }
         return $sender;
     }
 
