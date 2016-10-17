@@ -73,7 +73,7 @@ class Cors implements InjectionAwareInterface
         }
 
         if (! $this->isHttpOriginIsInTheWhiteList()) {
-            throw new OriginNotAllowedException('Http Origin Is Not Allowed');
+            return;
         }
         $this->getDI()->getResponse()->setHeader('Access-Control-Allow-Credentials', (string)$allowCredentials);
         $this->getDI()->getResponse()->setHeader('Access-Control-Allow-Origin', $httpOrigin);
@@ -88,10 +88,10 @@ class Cors implements InjectionAwareInterface
     protected function isHttpOriginIsInTheWhiteList()
     {
         $checked = false;
+        $origin = $this->getDI()->getRequest()->getHeader('HTTP_ORIGIN');
         foreach ($this->config as $domain) {
-            $originDomainArray = explode('.', parse_url($this->getDI()->getRequest()->getHeader('HTTP_ORIGIN'), PHP_URL_HOST));
-            $allowedDomainArray = explode('.', $domain['domain']);
-            if (! (count($allowedDomainArray) > count($originDomainArray)) && ! array_diff($allowedDomainArray, $originDomainArray)) {
+            $domainWithDot = '.' . ltrim($domain['domain'], '.');
+            if ($origin === $domain['domain'] or ends_with($origin, $domainWithDot)) {
                 $checked = true;
             }
         }

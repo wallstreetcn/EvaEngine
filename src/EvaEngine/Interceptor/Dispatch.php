@@ -270,6 +270,11 @@ class Dispatch
         }
 
         $methodsAllow = $params['methods'];
+
+        if (true === $params['cors_enabled']) {     //$params
+            $di->getCors()->preflightRequests();
+        }
+
         /**
          * @var \Phalcon\Http\Request $request
          */
@@ -287,12 +292,7 @@ class Dispatch
 
         //cache key matched, response already prepared
         if (true === $interceptResult) {
-            if (true === $params['cors_enabled']) {     //$params
-                $di->getCors()->preflightRequests();
-            }
-
             $di->getResponse()->send();
-
             return false;
         }
 
