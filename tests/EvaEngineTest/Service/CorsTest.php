@@ -95,18 +95,14 @@ class CorsTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($unmodifiedResponse->getHeaders(), $this->response->getHeaders());
     }
 
-    /**
-     * @expectedException \Eva\EvaEngine\Exception\OriginNotAllowedException
-     */
     public function testPreflightRequestWithOriginNotAllowed()
     {
         $_SERVER['HTTP_ORIGIN'] = 'http://foo.com';
         $this->application->getDI()->getCors()->preflightRequests();
+        $headers = $this->response->getHeaders()->toArray();
+        $this->assertFalse(isset($headers['Access-Control-Allow-Origin']));
     }
 
-    /**
-     * @expectedException \Eva\EvaEngine\Exception\OriginNotAllowedException
-     */
     public function testSimpleRequestWithOriginNotAllowed()
     {
         $_SERVER['HTTP_ORIGIN'] = 'http://foo.com';
@@ -123,25 +119,19 @@ class CorsTest extends \PHPUnit_Framework_TestCase
 
     }
 
-    /**
-     * @expectedException \Eva\EvaEngine\Exception\OriginNotAllowedException
-     */
     public function testItDoesNotReturnAllowOriginHeaderOnPreflightRequestWithOriginNotAllowed()
     {
         $_SERVER['HTTP_ORIGIN'] = 'http://api.foo.com';
         $this->application->getDI()->getCors()->preflightRequests();
-        $headers = $this->response->getHeaders();
+        $headers = $this->response->getHeaders()->toArray();
         $this->assertFalse(isset($headers['Access-Control-Allow-Origin']));
     }
 
-    /**
-     * @expectedException \Eva\EvaEngine\Exception\OriginNotAllowedException
-     */
     public function testItDoesNotReturnAllowOriginHeaderOnSimpleRequestWithOriginNotAllowed()
     {
         $_SERVER['HTTP_ORIGIN'] = 'http://foo.com';
         $this->application->getDI()->getCors()->simpleRequests();
-        $headers = $this->response->getHeaders();
+        $headers = $this->response->getHeaders()->toArray();
         $this->assertFalse(isset($headers['Access-Control-Allow-Origin']));
     }
 

@@ -50,11 +50,8 @@ class Cors implements InjectionAwareInterface
         if (empty($httpOrigin)) {
             return;
         }
-        if ($this->isOriginIsSameAsHost()) {
+        if (! $this->isHttpOriginAllowed()) {
             return;
-        }
-        if (! $this->isHttpOriginIsInTheWhiteList()) {
-            throw new OriginNotAllowedException('Http Origin Is Not Allowed');
         }
         $this->getDI()->getResponse()->setHeader('Access-Control-Allow-Origin', $httpOrigin);
     }
@@ -68,11 +65,8 @@ class Cors implements InjectionAwareInterface
         if (empty($httpOrigin)) {
             return;
         }
-        if ($this->isOriginIsSameAsHost()) {
-            return;
-        }
 
-        if (! $this->isHttpOriginIsInTheWhiteList()) {
+        if (! $this->isHttpOriginAllowed()) {
             return;
         }
         $this->getDI()->getResponse()->setHeader('Access-Control-Allow-Credentials', (string)$allowCredentials);
@@ -85,10 +79,24 @@ class Cors implements InjectionAwareInterface
         }
     }
 
-    protected function isHttpOriginIsInTheWhiteList()
+    protected function isHttpOriginAllowed()
     {
         $checked = false;
-        $origin = $this->getDI()->getRequest()->getHeader('HTTP_ORIGIN');
+        $origin = parse_url($this->getDI()->getRequest()->getHeader('HTTP_ORIGIN'), PHP_URL_HOST);
+
+        if ($this->isSameOrigin(
+            $this->getDI()->getRequest()->getHeader('HTTP_HOST'),
+            parse_url($this->getDI()->getRequest()->getHeader('HTTP_ORIGIN'), PHP_URL_HOST)
+        )) {
+            return false;
+        }
+
+        $this->config = array_merge([
+            [
+                'domain' => $this->getDI()->getRequest()->getHeader('HTTP_HOST')
+            ]
+        ], $this->config);
+
         foreach ($this->config as $domain) {
             $domainWithDot = '.' . ltrim($domain['domain'], '.');
             if ($origin === $domain['domain'] or ends_with($origin, $domainWithDot)) {
@@ -98,11 +106,10 @@ class Cors implements InjectionAwareInterface
         return $checked;
     }
 
-    public function isOriginIsSameAsHost()
+    private function isSameOrigin($origin, $domain)
     {
-        $originDomainArray = explode('.', parse_url($this->getDI()->getRequest()->getHeader('HTTP_ORIGIN'), PHP_URL_HOST));
-        $hostDomainArray = explode('.', $this->getDI()->getRequest()->getHeader('HTTP_HOST'));
-        if (! (count($hostDomainArray) > count($originDomainArray)) && ! array_diff($hostDomainArray, $originDomainArray)) {
+        $domainWithDot = '.' . ltrim($domain, '.');
+        if ($origin === $domain or ends_with($origin, $domainWithDot)) {
             return true;
         }
         return false;
