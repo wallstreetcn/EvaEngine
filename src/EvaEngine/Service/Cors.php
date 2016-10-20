@@ -83,27 +83,18 @@ class Cors implements InjectionAwareInterface
     {
         $checked = false;
         $origin = parse_url($this->getDI()->getRequest()->getHeader('HTTP_ORIGIN'), PHP_URL_HOST);
-
-        if ($this->isSameOrigin(
-            $this->getDI()->getRequest()->getHeader('HTTP_HOST'),
-            parse_url($this->getDI()->getRequest()->getHeader('HTTP_ORIGIN'), PHP_URL_HOST)
-        )) {
-            return true;
-        }
-
-        $this->config = array_merge([
+        $config = array_merge([
             [
                 'domain' => $this->getDI()->getRequest()->getHeader('HTTP_HOST')
             ]
         ], $this->config);
 
-        foreach ($this->config as $domain) {
-            $domainWithDot = '.' . ltrim($domain['domain'], '.');
-            if ($origin === $domain['domain'] or ends_with($origin, $domainWithDot)) {
-                $checked = true;
+        foreach ($config as $domain) {
+            if ($this->isSameOrigin($origin, $domain['domain'])) {
+                return true;
             }
         }
-        return $checked;
+        return false;
     }
 
     private function isSameOrigin($origin, $domain)

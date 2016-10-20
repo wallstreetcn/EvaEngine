@@ -67,7 +67,10 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
             array(
                 array(
                     'domain' => 'bar.com'
-                )
+                ),
+                array(
+                    'domain' => 'foo.com'
+                ),
             )
         );
 
@@ -402,6 +405,68 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
         $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_b', 'bar');
 
         $_SERVER['HTTP_ORIGIN'] = 'https://api.bar.com';
+
+        $interceptor = new DispatchInterceptor();
+        /**
+         * @var Dispatcher $dispatcher
+         */
+        $dispatcher = $this->di->getDispatcher();
+        $dispatcher->setParams(
+            array(
+                '_dispatch_cache' => 'lifetime=100',
+                '_cors_enabled' => true
+            )
+        );
+
+        /*
+         * Cors enabled when function injectInterceptor was called.
+         * So before calling function injectInterceptor, there will be no Access-Control-Allow-Origin header.
+         */
+        $this->assertEquals(false, $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+
+        $this->assertEquals(false, $interceptor->injectInterceptor($dispatcher));
+        $this->assertEquals('bar', $this->di->getResponse()->getContent());
+
+        $this->assertEquals($_SERVER['HTTP_ORIGIN'], $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+    }
+
+    public function testCorsFailed()
+    {
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_h', '{"foo":"header"}');
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_b', 'bar');
+
+        $_SERVER['HTTP_ORIGIN'] = 'https://api.nodomain.com';
+
+        $interceptor = new DispatchInterceptor();
+        /**
+         * @var Dispatcher $dispatcher
+         */
+        $dispatcher = $this->di->getDispatcher();
+        $dispatcher->setParams(
+            array(
+                '_dispatch_cache' => 'lifetime=100',
+                '_cors_enabled' => true
+            )
+        );
+
+        /*
+         * Cors enabled when function injectInterceptor was called.
+         * So before calling function injectInterceptor, there will be no Access-Control-Allow-Origin header.
+         */
+        $this->assertEquals(false, $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+
+        $this->assertEquals(false, $interceptor->injectInterceptor($dispatcher));
+        $this->assertEquals('bar', $this->di->getResponse()->getContent());
+
+        $this->assertEquals(false, $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+    }
+
+    public function testCorsSuccessWithSecondDomain()
+    {
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_h', '{"foo":"header"}');
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_b', 'bar');
+
+        $_SERVER['HTTP_ORIGIN'] = 'https://api.test.foo.com';
 
         $interceptor = new DispatchInterceptor();
         /**
