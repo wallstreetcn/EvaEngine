@@ -28,6 +28,11 @@ class Dispatch
     const INTERCEPTOR_KEY = '_dispatch_cache';
 
     /**
+     * default cors key for dispatcher
+     */
+    const CORS_ENABLED_KEY = '_cors_enabled';
+
+    /**
      * default debug flag in http header when cache hit
      */
     const CACHE_HEADER_FLAG = 'X-EvaEngine-Interceptor-Cache';
@@ -226,7 +231,6 @@ class Dispatch
                 'ignore_query_keys' => '_',
                 'jsonp_callback_key' => 'callback',
                 'format' => 'text', //allow text | jsonp
-                'cors_enabled' => false,
             ),
             $interceptorParams
         );
@@ -243,9 +247,46 @@ class Dispatch
             explode('|', $interceptorParams['ignore_query_keys']) : array();
         $interceptorParams['ignore_query_keys'] = $ignoreQueryKeys;
 
-        $interceptorParams['cors_enabled'] = (bool)$interceptorParams['cors_enabled'];
-
         return $interceptorParams;
+    }
+
+    /**
+     * Parse Dispatcher cors options to array
+     * @param DispatcherInterface $dispatcher
+     * @return array
+     */
+    public function getCorsParams(DispatcherInterface $dispatcher)
+    {
+        $corsConfig = strtolower($dispatcher->getParam(self::CORS_ENABLED_KEY));
+
+        $defaultConfig = [
+            'enabled' => false
+        ];
+
+        if (!$corsConfig) {
+            return $defaultConfig;
+        }
+
+        return array_merge($defaultConfig, [
+            'enabled' => (bool)$corsConfig
+        ]);
+    }
+
+    /**
+     * Open cors checker when cors enabled.
+     * @param DispatcherInterface $dispatcher
+     */
+    private function cors(DispatcherInterface $dispatcher)
+    {
+        /**
+         * @var \Phalcon\DI $di
+         */
+        $di = $dispatcher->getDI();
+
+        $params = $this->getCorsParams($dispatcher);
+        if (true === $params['enabled']) {     //$params
+            $di->getCors()->preflightRequests();
+        }
     }
 
     /**
@@ -259,6 +300,9 @@ class Dispatch
          */
         $di = $dispatcher->getDI();
         $config = $di->getConfig();
+
+        $this->cors($dispatcher);
+
         // cache is disable
         if (!$config->cache->enable) {
             return true;
@@ -270,10 +314,6 @@ class Dispatch
         }
 
         $methodsAllow = $params['methods'];
-
-        if (true === $params['cors_enabled']) {     //$params
-            $di->getCors()->preflightRequests();
-        }
 
         /**
          * @var \Phalcon\Http\Request $request
