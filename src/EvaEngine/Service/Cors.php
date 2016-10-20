@@ -88,7 +88,7 @@ class Cors implements InjectionAwareInterface
             $this->getDI()->getRequest()->getHeader('HTTP_HOST'),
             parse_url($this->getDI()->getRequest()->getHeader('HTTP_ORIGIN'), PHP_URL_HOST)
         )) {
-            return false;
+            return true;
         }
 
         $this->config = array_merge([
