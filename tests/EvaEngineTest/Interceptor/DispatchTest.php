@@ -2,6 +2,7 @@
 namespace Eva\EvaEngine\EvaEngineTest\Interceptor;
 
 use Eva\EvaEngine\Interceptor\Dispatch as DispatchInterceptor;
+use Eva\EvaEngine\Service\Cors;
 use Phalcon\Mvc\Dispatcher;
 use Phalcon\Http\Request;
 use Phalcon\Http\Response;
@@ -62,10 +63,22 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
 
         $eventsManager = new Manager();
 
+        $cors = new Cors(
+            array(
+                array(
+                    'domain' => 'bar.com'
+                ),
+                array(
+                    'domain' => 'foo.com'
+                ),
+            )
+        );
+
         $di->set('request', $request, true);
         $di->set('response', $response, true);
         $di->set('dispatcher', $dispatcher, true);
         $di->set('eventsManager', $eventsManager);
+        $di->set('cors', $cors);
         $this->di = $di;
 
         $application = new Application();
@@ -84,7 +97,7 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
         $dispatcher = new Dispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=-1'
+                '_dispatch_cache' => 'lifetime=-1'
             )
         );
         $this->assertEquals($interceptor->getInterceptorParams($dispatcher), array());
@@ -92,17 +105,24 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
         $dispatcher = new Dispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=60'
+                '_dispatch_cache' => 'lifetime=60'
             )
         );
         $this->assertEquals(
             $interceptor->getInterceptorParams($dispatcher),
             array(
-            'lifetime' => 60,
-            'methods' => array('get'),
-            'ignore_query_keys' => array('_'),
-            'jsonp_callback_key' => 'callback',
-            'format' => 'text',
+                'lifetime' => 60,
+                'methods' => array('get'),
+                'ignore_query_keys' => array('_'),
+                'jsonp_callback_key' => 'callback',
+                'format' => 'text',
+            )
+        );
+
+        $this->assertEquals(
+            $interceptor->getCorsParams($dispatcher),
+            array(
+                'enabled' => false
             )
         );
 
@@ -110,17 +130,26 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
         $dispatcher = new Dispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100&methods=get|post&ignore_query_keys=api_key|_&jsonp_callback_key=callback&format=jsonp'
+                '_dispatch_cache' => 'lifetime=100&methods=get|post&ignore_query_keys=api_key|_&jsonp_callback_key=callback&format=jsonp',
+                '_cors_enabled' => true
             )
         );
+
         $this->assertEquals(
             $interceptor->getInterceptorParams($dispatcher),
             array(
-            'lifetime' => 100,
-            'methods' => array('get', 'post'),
-            'ignore_query_keys' => array('api_key', '_'),
-            'jsonp_callback_key' => 'callback',
-            'format' => 'jsonp',
+                'lifetime' => 100,
+                'methods' => array('get', 'post'),
+                'ignore_query_keys' => array('api_key', '_'),
+                'jsonp_callback_key' => 'callback',
+                'format' => 'jsonp',
+            )
+        );
+
+        $this->assertEquals(
+            $interceptor->getCorsParams($dispatcher),
+            array(
+                'enabled' => true
             )
         );
     }
@@ -146,8 +175,8 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
         $expectedKey = md5(
             'example.com' . '/path' . json_encode(
                 array(
-                'foo' => 'aaa',
-                'bar' => 'bbb'
+                    'foo' => 'aaa',
+                    'bar' => 'bbb'
                 )
             )
         );
@@ -186,12 +215,12 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
     {
         $interceptor = new DispatchInterceptor();
         /**
- * @var Dispatcher $dispatcher
-*/
+         * @var Dispatcher $dispatcher
+        */
         $dispatcher = $this->di->getDispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100'
+                '_dispatch_cache' => 'lifetime=100'
             )
         );
         $this->assertEquals(true, $interceptor->injectInterceptor($dispatcher));
@@ -202,12 +231,12 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
         $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_b', 'foo');
         $interceptor = new DispatchInterceptor();
         /**
- * @var Dispatcher $dispatcher
-*/
+         * @var Dispatcher $dispatcher
+        */
         $dispatcher = $this->di->getDispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100'
+                '_dispatch_cache' => 'lifetime=100'
             )
         );
         $this->assertEquals(true, $interceptor->injectInterceptor($dispatcher));
@@ -221,12 +250,12 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
 
         $interceptor = new DispatchInterceptor();
         /**
- * @var Dispatcher $dispatcher
-*/
+         * @var Dispatcher $dispatcher
+        */
         $dispatcher = $this->di->getDispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100'
+                '_dispatch_cache' => 'lifetime=100'
             )
         );
         $this->assertEquals(false, $interceptor->injectInterceptor($dispatcher));
@@ -237,19 +266,19 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
     {
         $this->di->getViewCache()->flush();
         /**
- * @var Response $response
-*/
+         * @var Response $response
+        */
         $response = $this->di->getResponse();
         $response->setHeader('Content-Type', 'test-type');
         $response->setHeader('More-Header', 'test-more-header');
         $interceptor = new DispatchInterceptor();
         /**
- * @var Dispatcher $dispatcher
-*/
+         * @var Dispatcher $dispatcher
+        */
         $dispatcher = $this->di->getDispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100'
+                '_dispatch_cache' => 'lifetime=100'
             )
         );
         $this->assertEquals(true, $interceptor->injectInterceptor($dispatcher));
@@ -283,12 +312,12 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
 
         $interceptor = new DispatchInterceptor();
         /**
- * @var Dispatcher $dispatcher
-*/
+         * @var Dispatcher $dispatcher
+        */
         $dispatcher = $this->di->getDispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100'
+                '_dispatch_cache' => 'lifetime=100'
             )
         );
         $this->assertEquals(true, $interceptor->injectInterceptor($dispatcher));
@@ -320,12 +349,12 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
 
         $interceptor = new DispatchInterceptor();
         /**
- * @var Dispatcher $dispatcher
-*/
+         * @var Dispatcher $dispatcher
+        */
         $dispatcher = $this->di->getDispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100&format=jsonp'
+                '_dispatch_cache' => 'lifetime=100&format=jsonp'
             )
         );
         $this->assertEquals(true, $interceptor->injectInterceptor($dispatcher));
@@ -349,7 +378,6 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
         );
         $request = new Request();
 
-
         $this->di->set('request', $request);
 
         $this->di->getViewCache()->flush();
@@ -359,15 +387,108 @@ class DispatchTest extends \PHPUnit_Framework_TestCase
 
         $interceptor = new DispatchInterceptor();
         /**
- * @var Dispatcher $dispatcher
-*/
+         * @var Dispatcher $dispatcher
+        */
         $dispatcher = $this->di->getDispatcher();
         $dispatcher->setParams(
             array(
-            '_dispatch_cache' => 'lifetime=100&format=jsonp'
+                '_dispatch_cache' => 'lifetime=100&format=jsonp'
             )
         );
         $this->assertEquals(false, $interceptor->injectInterceptor($dispatcher));
         $this->assertEquals('testcallback({"foo":"bar"})', $this->di->getResponse()->getContent());
+    }
+
+    public function testTextCacheHitWithCorsEnabled()
+    {
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_h', '{"foo":"header"}');
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_b', 'bar');
+
+        $_SERVER['HTTP_ORIGIN'] = 'https://api.bar.com';
+
+        $interceptor = new DispatchInterceptor();
+        /**
+         * @var Dispatcher $dispatcher
+         */
+        $dispatcher = $this->di->getDispatcher();
+        $dispatcher->setParams(
+            array(
+                '_dispatch_cache' => 'lifetime=100',
+                '_cors_enabled' => true
+            )
+        );
+
+        /*
+         * Cors enabled when function injectInterceptor was called.
+         * So before calling function injectInterceptor, there will be no Access-Control-Allow-Origin header.
+         */
+        $this->assertEquals(false, $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+
+        $this->assertEquals(false, $interceptor->injectInterceptor($dispatcher));
+        $this->assertEquals('bar', $this->di->getResponse()->getContent());
+
+        $this->assertEquals($_SERVER['HTTP_ORIGIN'], $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+    }
+
+    public function testCorsFailed()
+    {
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_h', '{"foo":"header"}');
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_b', 'bar');
+
+        $_SERVER['HTTP_ORIGIN'] = 'https://api.nodomain.com';
+
+        $interceptor = new DispatchInterceptor();
+        /**
+         * @var Dispatcher $dispatcher
+         */
+        $dispatcher = $this->di->getDispatcher();
+        $dispatcher->setParams(
+            array(
+                '_dispatch_cache' => 'lifetime=100',
+                '_cors_enabled' => true
+            )
+        );
+
+        /*
+         * Cors enabled when function injectInterceptor was called.
+         * So before calling function injectInterceptor, there will be no Access-Control-Allow-Origin header.
+         */
+        $this->assertEquals(false, $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+
+        $this->assertEquals(false, $interceptor->injectInterceptor($dispatcher));
+        $this->assertEquals('bar', $this->di->getResponse()->getContent());
+
+        $this->assertEquals(false, $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+    }
+
+    public function testCorsSuccessWithSecondDomain()
+    {
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_h', '{"foo":"header"}');
+        $this->di->getViewCache()->save('d6bd338ec8eb8666f3d054566f335039_b', 'bar');
+
+        $_SERVER['HTTP_ORIGIN'] = 'https://api.test.foo.com';
+
+        $interceptor = new DispatchInterceptor();
+        /**
+         * @var Dispatcher $dispatcher
+         */
+        $dispatcher = $this->di->getDispatcher();
+        $dispatcher->setParams(
+            array(
+                '_dispatch_cache' => 'lifetime=100',
+                '_cors_enabled' => true
+            )
+        );
+
+        /*
+         * Cors enabled when function injectInterceptor was called.
+         * So before calling function injectInterceptor, there will be no Access-Control-Allow-Origin header.
+         */
+        $this->assertEquals(false, $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
+
+        $this->assertEquals(false, $interceptor->injectInterceptor($dispatcher));
+        $this->assertEquals('bar', $this->di->getResponse()->getContent());
+
+        $this->assertEquals($_SERVER['HTTP_ORIGIN'], $this->di->getResponse()->getHeaders()->get('Access-Control-Allow-Origin'));
     }
 }

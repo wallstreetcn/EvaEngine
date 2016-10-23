@@ -28,6 +28,11 @@ class Dispatch
     const INTERCEPTOR_KEY = '_dispatch_cache';
 
     /**
+     * default cors key for dispatcher
+     */
+    const CORS_ENABLED_KEY = '_cors_enabled';
+
+    /**
      * default debug flag in http header when cache hit
      */
     const CACHE_HEADER_FLAG = 'X-EvaEngine-Interceptor-Cache';
@@ -138,7 +143,7 @@ class Dispatch
             $bodyCache = $cache->get($bodyKey);
             $headersCache = $cache->get($headersKey);
             $hasCache = $headersCache && $bodyCache;
-        }else{
+        } else {
             // 要求刷新缓存时：先删了已有缓存，避免不正常退出时（如资源被移除）缓存未被刷新的情况。
             $cache->delete($headersKey);
         }
@@ -246,6 +251,45 @@ class Dispatch
     }
 
     /**
+     * Parse Dispatcher cors options to array
+     * @param DispatcherInterface $dispatcher
+     * @return array
+     */
+    public function getCorsParams(DispatcherInterface $dispatcher)
+    {
+        $corsConfig = strtolower($dispatcher->getParam(self::CORS_ENABLED_KEY));
+
+        $defaultConfig = [
+            'enabled' => false
+        ];
+
+        if (!$corsConfig) {
+            return $defaultConfig;
+        }
+
+        return array_merge($defaultConfig, [
+            'enabled' => (bool)$corsConfig
+        ]);
+    }
+
+    /**
+     * Open cors checker when cors enabled.
+     * @param DispatcherInterface $dispatcher
+     */
+    private function cors(DispatcherInterface $dispatcher)
+    {
+        /**
+         * @var \Phalcon\DI $di
+         */
+        $di = $dispatcher->getDI();
+
+        $params = $this->getCorsParams($dispatcher);
+        if (true === $params['enabled']) {     //$params
+            $di->getCors()->preflightRequests();
+        }
+    }
+
+    /**
      * @param DispatcherInterface $dispatcher
      * @return bool true if cache missed(intercepter injected), false if cache hit(intercepter not injected)
      */
@@ -256,6 +300,9 @@ class Dispatch
          */
         $di = $dispatcher->getDI();
         $config = $di->getConfig();
+
+        $this->cors($dispatcher);
+
         // cache is disable
         if (!$config->cache->enable) {
             return true;
@@ -267,6 +314,7 @@ class Dispatch
         }
 
         $methodsAllow = $params['methods'];
+
         /**
          * @var \Phalcon\Http\Request $request
          */
@@ -285,7 +333,6 @@ class Dispatch
         //cache key matched, response already prepared
         if (true === $interceptResult) {
             $di->getResponse()->send();
-
             return false;
         }
 

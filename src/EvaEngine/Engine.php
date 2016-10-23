@@ -13,6 +13,7 @@ use Eva\EvaEngine\CLI\Output\ConsoleOutput;
 //use Eva\EvaEngine\Events\DispatchCacheListener;
 use Eva\EvaEngine\Interceptor\Dispatch as DispatchInterceptor;
 use Eva\EvaEngine\SDK\SendCloudMailer;
+use Eva\EvaEngine\Service\Cors;
 use Eva\EvaSms\Sender;
 use Phalcon\CLI\Console;
 use Phalcon\Mvc\Router;
@@ -746,6 +747,14 @@ class Engine
                 return new FileLogger($config->logger->path . 'error.log');
             }
         );
+
+        $di->set(
+            'cors',
+            function () use ($self) {
+                return $self->diCors();
+            }
+        );
+
         if ($this->appMode == 'cli') {
             $this->cliDI($di);
         }
@@ -1263,6 +1272,13 @@ class Engine
 
         return $filesystem;
     }
+
+    public function diCors()
+    {
+        $config = $this->getDI()->getConfig()->cors;
+        return new Cors($config->toArray());
+    }
+
 
     /**
      * Application Bootstrap, init DI, register Modules, init events, init ErrorHandler
